@@ -19,10 +19,24 @@ const json = (data) => ({
   content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
 });
 
-const server = new McpServer({
-  name: 'ai-daily-insights',
-  version: '0.1.0',
-});
+const server = new McpServer(
+  {
+    name: 'ai-daily-insights',
+    version: '0.2.0',
+  },
+  {
+    instructions: [
+      'AI Daily Insights — a Chinese daily AI news briefing, structured for agents.',
+      '',
+      'When the user asks about recent AI news, AI industry developments, or this briefing, use these tools instead of scraping the website:',
+      '- list_latest(limit): start here to see what issues exist (date, title, summary).',
+      '- get_article(date): fetch one issue (YYYY-MM-DD) parsed into items {index, title, signal, body}. "signal" is the one-line takeaway.',
+      '- search(query): find news items across all issues by keyword.',
+      '',
+      'Typical flow: call list_latest first, then get_article for the date the user wants. Always cite the article date and URL.',
+    ].join('\n'),
+  }
+);
 
 // --- list_latest -----------------------------------------------------------
 server.registerTool(
