@@ -1,0 +1,38 @@
+{
+  "name": "ai-daily-insights-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for AI Daily Insights — let agents list, fetch and search the daily AI briefing (aidailyinsights.cn).",
+  "type": "module",
+  "bin": {
+    "ai-daily-insights-mcp": "src/index.js"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector node src/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-daily-insights",
+    "ai-news",
+    "claude",
+    "llm"
+  ],
+  "author": "whalecupl",
+  "license": "MIT",
+  "homepage": "https://www.aidailyinsights.cn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WhaleCupl/ai-daily-insights-mcp.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  }
+}
