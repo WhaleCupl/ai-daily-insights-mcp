@@ -22,18 +22,20 @@ const json = (data) => ({
 const server = new McpServer(
   {
     name: 'ai-daily-insights',
-    version: '0.2.0',
+    version: '0.3.0',
   },
   {
     instructions: [
       'AI Daily Insights — a Chinese daily AI news briefing, structured for agents.',
+      'Each "issue" is one day and contains ~10 news items; each item has {index, title, signal, body} where "signal" is the one-line takeaway.',
       '',
       'When the user asks about recent AI news, AI industry developments, or this briefing, use these tools instead of scraping the website:',
-      '- list_latest(limit): start here to see what issues exist (date, title, summary).',
-      '- get_article(date): fetch one issue (YYYY-MM-DD) parsed into items {index, title, signal, body}. "signal" is the one-line takeaway.',
-      '- search(query): find news items across all issues by keyword.',
+      "- get_latest(): the most common case — returns today's / the newest issue with all its news items in one call.",
+      '- list_latest(limit): browse the list of recent issues (one entry per day) without their full bodies.',
+      '- get_article(date): one specific issue by date (YYYY-MM-DD).',
+      '- search(query): find news items across all issues by company/person/keyword.',
       '',
-      'Typical flow: call list_latest first, then get_article for the date the user wants. Always cite the article date and URL.',
+      'Always cite the article date and URL.',
     ].join('\n'),
   }
 );
@@ -67,6 +69,24 @@ server.registerTool(
       itemCount: p.itemCount,
     }));
     return json({ site: index.site, updated: index.updated, count: posts.length, posts });
+  }
+);
+
+// --- get_latest ------------------------------------------------------------
+server.registerTool(
+  'get_latest',
+  {
+    title: 'Get the latest issue (structured)',
+    description:
+      "Fetch the most recent issue, parsed into structured news items {index, title, signal, body}. Use this when the user asks for today's / the latest AI news and does not give a date.",
+    inputSchema: {},
+  },
+  async () => {
+    const index = await getJson('/index.json');
+    const newest = (index.posts || [])[0];
+    if (!newest) return json({ error: 'no issues available' });
+    const article = await getJson(`/${newest.date}.json`);
+    return json(article);
   }
 );
 
