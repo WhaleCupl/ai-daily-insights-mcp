@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
+const VERSION = '0.3.1';
 const BASE_URL = (process.env.AI_DAILY_BASE_URL || 'https://www.aidailyinsights.cn').replace(/\/$/, '');
 
 async function getJson(path) {
@@ -22,7 +23,7 @@ const json = (data) => ({
 const server = new McpServer(
   {
     name: 'ai-daily-insights',
-    version: '0.3.0',
+    version: VERSION,
   },
   {
     instructions: [
@@ -164,5 +165,27 @@ server.registerTool(
   }
 );
 
+// 启动提示：只写到 stderr，绝不碰 stdout（stdout 专供 MCP JSON 协议）。
+// 这样手动在终端运行的人能看到「它已正常启动」，不会误以为卡住。
+function printBanner() {
+  const lines = [
+    '',
+    `┌─ AI Daily Insights · MCP Server v${VERSION} ` + '─'.repeat(14),
+    '│ ✅ 已启动，正在等待 AI 客户端连接（stdio 模式）。',
+    '│',
+    '│ 这是给 AI 用的接口，不是直接给人看的——',
+    '│ 看到这段就说明它已正常运行，保持窗口开着即可。',
+    '│',
+    '│ 可用工具: list_latest · get_latest · get_article · search',
+    `│ 数据源:   ${BASE_URL}`,
+    '│ 接入文档: https://www.aidailyinsights.cn/qa/',
+    '│ 退出:     Ctrl + C',
+    '└' + '─'.repeat(54),
+    '',
+  ];
+  process.stderr.write(lines.join('\n') + '\n');
+}
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
+printBanner();
