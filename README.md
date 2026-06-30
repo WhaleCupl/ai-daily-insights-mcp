@@ -8,11 +8,14 @@ It lets any MCP-capable assistant (Claude Desktop, Claude Code, Cursor, …) lis
 
 | Tool | What it does |
 | --- | --- |
+| `get_latest()` | The newest issue with all its news items in one call. |
 | `list_latest(limit=5)` | List recent issues: date, title, summary, tags, URLs. |
 | `get_article(date)` | Fetch one issue (`YYYY-MM-DD`), parsed into news items `{index, title, signal, body}`. |
-| `search(query, limit=10)` | Keyword search across every issue's titles and bodies. |
+| `get_range(from, to, limit=14)` | Every issue in a date range (e.g. the past week), fetched in parallel. |
+| `list_by_tag(tag, limit=10)` | Issues carrying a given tag (company/topic), matched case-insensitively. |
+| `search(query, tag, limit=10)` | Full-text + tag search across all news items, in one server-side call. |
 
-Data comes from the public JSON endpoints (`/index.json`, `/{date}.json`) — the server is stateless and needs no API key.
+Data comes from the public JSON endpoints (`/index.json`, `/{date}.json`, `/search`) — the server is stateless and needs no API key. Responses are cached in-memory briefly (default 5 min, override with `AI_DAILY_CACHE_TTL_MS`) to avoid hammering the site on repeated calls.
 
 ## Use it
 
@@ -40,6 +43,7 @@ Then ask: *"用 ai-daily-insights 列出最近 5 天的 AI 资讯，挑 SpaceX �
 | Env var | Default | Purpose |
 | --- | --- | --- |
 | `AI_DAILY_BASE_URL` | `https://www.aidailyinsights.cn` | Override the site origin (e.g. a preview deploy). |
+| `AI_DAILY_CACHE_TTL_MS` | `300000` | In-memory cache TTL for fetched JSON, in milliseconds. |
 
 ## Develop
 
