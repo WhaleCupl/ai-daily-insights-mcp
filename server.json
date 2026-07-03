@@ -1,0 +1,30 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.whalecupl/ai-daily-insights-mcp",
+  "description": "List, fetch and search AI Daily Insights (aidailyinsights.cn), a Chinese daily AI-industry briefing built for agents.",
+  "repository": {
+    "url": "https://github.com/WhaleCupl/ai-daily-insights-mcp",
+    "source": "github"
+  },
+  "version": "0.4.1",
+  "websiteUrl": "https://www.aidailyinsights.cn",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "ai-daily-insights-mcp",
+      "version": "0.4.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "AI_DAILY_CACHE_TTL_MS",
+          "description": "In-memory cache TTL in milliseconds (default 300000).",
+          "isRequired": false,
+          "format": "number"
+        }
+      ]
+    }
+  ]
+}
