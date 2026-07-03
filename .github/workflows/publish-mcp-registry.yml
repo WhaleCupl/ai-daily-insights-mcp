@@ -1,0 +1,28 @@
+name: Publish to MCP Registry
+
+# 手动触发：Actions 页面点 Run workflow 即可。
+# 用 GitHub OIDC 认证（无需任何 token/secret），自动以 io.github.whalecupl 命名空间发布 server.json。
+# 前提：server.json 里引用的 npm 包版本已发布到 npm（npm 包需含 mcpName 字段）。
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mcp-publisher
+        run: |
+          curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz" | tar xz mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/
+
+      - name: Login (GitHub OIDC)
+        run: mcp-publisher login github-oidc
+
+      - name: Publish
+        run: mcp-publisher publish
