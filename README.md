@@ -49,8 +49,13 @@ Then ask: *"用 ai-daily-insights 列出最近 5 天的 AI 资讯，挑 SpaceX �
 
 ```bash
 npm install
+npm test
 npm run inspect   # opens the MCP Inspector
 ```
+
+Requires Node.js 20 or newer. Every tool declares explicit MCP safety annotations,
+validates its inputs with Zod, and converts upstream failures into structured MCP
+error results.
 
 ## License
 
