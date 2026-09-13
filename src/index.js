@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-const VERSION = '0.4.0';
+const VERSION = '0.4.3';
 const BASE_URL = (process.env.AI_DAILY_BASE_URL || 'https://www.aidailyinsights.cn').replace(/\/$/, '');
 // 缓存存活时间：站点每天更新、偶尔编辑，5 分钟足够新鲜又能挡住连续调用的重复请求。
 const CACHE_TTL_MS = Number(process.env.AI_DAILY_CACHE_TTL_MS || 5 * 60 * 1000);
@@ -30,6 +30,30 @@ async function getJson(path, { noCache = false } = {}) {
 }
 
 const json = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] });
+const toolError = (error) => ({
+  isError: true,
+  content: [
+    {
+      type: 'text',
+      text: JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    },
+  ],
+});
+const safe = (handler) => async (...args) => {
+  try {
+    return await handler(...args);
+  } catch (error) {
+    return toolError(error);
+  }
+};
+const READ_ONLY_ANNOTATIONS = Object.freeze({
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+});
 const slimPost = (p) => ({
   date: p.date,
   title: p.title,
@@ -70,12 +94,13 @@ server.registerTool(
     inputSchema: {
       limit: z.number().int().min(1).max(50).default(5).describe('How many recent issues to return (default 5).'),
     },
+    annotations: READ_ONLY_ANNOTATIONS,
   },
-  async ({ limit }) => {
+  safe(async ({ limit }) => {
     const index = await getJson('/index.json');
     const posts = (index.posts || []).slice(0, limit).map(slimPost);
     return json({ site: index.site, updated: index.updated, count: posts.length, posts });
-  }
+  })
 );
 
 // --- get_latest ------------------------------------------------------------
@@ -85,14 +110,15 @@ server.registerTool(
     title: 'Get the latest issue (structured)',
     description:
       "Fetch the most recent issue, parsed into structured news items {index, title, signal, body}. Use this when the user asks for today's / the latest AI news and does not give a date.",
-    inputSchema: {},
+    inputSchema: z.object({}).strict(),
+    annotations: READ_ONLY_ANNOTATIONS,
   },
-  async () => {
+  safe(async () => {
     const index = await getJson('/index.json');
     const newest = (index.posts || [])[0];
     if (!newest) return json({ error: 'no issues available' });
     return json(await getJson(`/${newest.date}.json`));
-  }
+  })
 );
 
 // --- get_article -----------------------------------------------------------
@@ -105,8 +131,9 @@ server.registerTool(
     inputSchema: {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('Issue date, e.g. 2026-06-24.'),
     },
+    annotations: READ_ONLY_ANNOTATIONS,
   },
-  async ({ date }) => json(await getJson(`/${date}.json`))
+  safe(async ({ date }) => json(await getJson(`/${date}.json`)))
 );
 
 // --- get_range -------------------------------------------------------------
@@ -121,14 +148,15 @@ server.registerTool(
       to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('End date (inclusive), e.g. 2026-06-30.'),
       limit: z.number().int().min(1).max(31).default(14).describe('Max issues to return (default 14).'),
     },
+    annotations: READ_ONLY_ANNOTATIONS,
   },
-  async ({ from, to, limit }) => {
+  safe(async ({ from, to, limit }) => {
     const [lo, hi] = from <= to ? [from, to] : [to, from];
     const index = await getJson('/index.json');
     const dates = (index.posts || []).map((p) => p.date).filter((d) => d >= lo && d <= hi).slice(0, limit);
     const issues = await Promise.all(dates.map((d) => getJson(`/${d}.json`).catch(() => null)));
     return json({ from: lo, to: hi, count: issues.filter(Boolean).length, issues: issues.filter(Boolean) });
-  }
+  })
 );
 
 // --- list_by_tag -----------------------------------------------------------
@@ -142,8 +170,9 @@ server.registerTool(
       tag: z.string().min(1).describe('Tag to filter by, matched case-insensitively.'),
       limit: z.number().int().min(1).max(50).default(10).describe('Max issues to return (default 10).'),
     },
+    annotations: READ_ONLY_ANNOTATIONS,
   },
-  async ({ tag, limit }) => {
+  safe(async ({ tag, limit }) => {
     const index = await getJson('/index.json');
     const t = tag.toLowerCase();
     const posts = (index.posts || [])
@@ -151,7 +180,7 @@ server.registerTool(
       .slice(0, limit)
       .map(slimPost);
     return json({ tag, count: posts.length, posts });
-  }
+  })
 );
 
 // --- search ----------------------------------------------------------------
@@ -166,8 +195,9 @@ server.registerTool(
       tag: z.string().default('').describe('Restrict to items whose issue carries this tag. Optional.'),
       limit: z.number().int().min(1).max(50).default(10).describe('Max matching items (default 10).'),
     },
+    annotations: READ_ONLY_ANNOTATIONS,
   },
-  async ({ query, tag, limit }) => {
+  safe(async ({ query, tag, limit }) => {
     const q = (query || '').trim();
     const tg = (tag || '').trim();
     if (!q && !tg) return json({ error: 'provide at least one of: query, tag' });
@@ -184,7 +214,7 @@ server.registerTool(
       /* 老版本站点没有 /search，走下面的兜底 */
     }
     return json(await localSearch(q, tg, limit));
-  }
+  })
 );
 
 // 兜底：直接下载扁平索引，在本地过滤（仅当服务端 /search 不可用时）。
