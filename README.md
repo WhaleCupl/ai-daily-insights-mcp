@@ -4,6 +4,12 @@ A [Model Context Protocol](https://modelcontextprotocol.io) server for **[AI Dai
 
 It lets any MCP-capable assistant (Claude Desktop, Claude Code, Cursor, …) list, read and search the daily AI news, fully structured — no HTML scraping.
 
+## Aggregate usage and privacy (0.4.4+)
+
+Each entered tool handler sends a best-effort background event to the configured `AI_DAILY_BASE_URL` (the public site by default). It contains only the tool name and package version: no arguments, search queries, results, session IDs or user identifiers. The hosting infrastructure still sees standard request metadata. Events include cached calls and errors, but exclude tool discovery and rejected input schemas. They are self-reported usage, not verified AI users.
+
+Set `AI_DAILY_ANALYTICS=0` in the MCP server environment to disable these events. Data fetches still use the package/version User-Agent for HTTP attribution. Reporting never waits on the tool response path, has a 1.5-second timeout, at most 16 outstanding events and no retries; offline/shutdown/opt-out may undercount. Existing data caching is unchanged.
+
 ## Tools
 
 | Tool | What it does |

@@ -21,9 +21,17 @@ const post = {
 
 let api;
 let client;
+const events = [];
+const dataRequests = [];
 
 before(async () => {
   api = createServer((request, response) => {
+    if (request.url === '/mcp-event') {
+      events.push(request.headers['x-adi-mcp-tool']);
+      response.statusCode = 204;
+      return response.end();
+    }
+    dataRequests.push({url:request.url, ua:request.headers['user-agent']});
     response.setHeader('content-type', 'application/json');
     if (request.url === '/index.json') return response.end(JSON.stringify({ site: 'test', updated: issue.date, posts: [post] }));
     if (request.url === `/${issue.date}.json`) return response.end(JSON.stringify(issue));
@@ -88,4 +96,19 @@ test('upstream failures become structured MCP errors', async () => {
   const result = await client.callTool({ name: 'get_article', arguments: { date: '2026-09-12' } });
   assert.equal(result.isError, true);
   assert.match(result.content[0].text, /GET \/2026-09-12\.json failed: 404/);
+});
+
+test('six tools report usage; cached calls add events without data fetches', async () => {
+  const waitFor = async predicate => {
+    for(let i=0;i<100 && !predicate();i++) await new Promise(r=>setTimeout(r,10));
+    assert.ok(predicate());
+  };
+  await waitFor(()=>cases.every(([name])=>events.includes(name)));
+  const before = events.filter(name=>name==='list_latest').length;
+  const fetches = dataRequests.length;
+  await client.callTool({name:'list_latest',arguments:{limit:1}});
+  await client.callTool({name:'list_latest',arguments:{limit:1}});
+  await waitFor(()=>events.filter(name=>name==='list_latest').length===before+2);
+  assert.equal(dataRequests.length,fetches);
+  assert.ok(dataRequests.every(r=>r.ua==='ai-daily-insights-mcp/0.4.4'));
 });

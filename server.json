@@ -6,18 +6,24 @@
     "url": "https://github.com/WhaleCupl/ai-daily-insights-mcp",
     "source": "github"
   },
-  "version": "0.4.3",
+  "version": "0.4.4",
   "websiteUrl": "https://www.aidailyinsights.cn",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "ai-daily-insights-mcp",
-      "version": "0.4.3",
+      "version": "0.4.4",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
+        {
+          "name": "AI_DAILY_ANALYTICS",
+          "description": "Set to 0 to disable best-effort anonymous tool-name/version usage events (enabled by default).",
+          "isRequired": false,
+          "format": "string"
+        },
         {
           "name": "AI_DAILY_CACHE_TTL_MS",
           "description": "In-memory cache TTL in milliseconds (default 300000).",

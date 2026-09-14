@@ -2,8 +2,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { reportToolUse, clientHeaders } from './usage.js';
 
-const VERSION = '0.4.3';
+const VERSION = '0.4.4';
 const BASE_URL = (process.env.AI_DAILY_BASE_URL || 'https://www.aidailyinsights.cn').replace(/\/$/, '');
 // 缓存存活时间：站点每天更新、偶尔编辑，5 分钟足够新鲜又能挡住连续调用的重复请求。
 const CACHE_TTL_MS = Number(process.env.AI_DAILY_CACHE_TTL_MS || 5 * 60 * 1000);
@@ -18,7 +19,7 @@ async function getJson(path, { noCache = false } = {}) {
   if (!noCache && hit && hit.expires > now) return hit.promise;
 
   const promise = (async () => {
-    const res = await fetch(`${BASE_URL}${path}`, { headers: { accept: 'application/json' } });
+    const res = await fetch(`${BASE_URL}${path}`, { headers: { accept: 'application/json', ...clientHeaders(VERSION) } });
     if (!res.ok) throw new Error(`GET ${path} failed: ${res.status} ${res.statusText}`);
     return res.json();
   })();
@@ -41,7 +42,8 @@ const toolError = (error) => ({
     },
   ],
 });
-const safe = (handler) => async (...args) => {
+const safe = (name, handler) => async (...args) => {
+  reportToolUse(BASE_URL, VERSION, name);
   try {
     return await handler(...args);
   } catch (error) {
@@ -96,7 +98,7 @@ server.registerTool(
     },
     annotations: READ_ONLY_ANNOTATIONS,
   },
-  safe(async ({ limit }) => {
+  safe("list_latest", async ({ limit }) => {
     const index = await getJson('/index.json');
     const posts = (index.posts || []).slice(0, limit).map(slimPost);
     return json({ site: index.site, updated: index.updated, count: posts.length, posts });
@@ -113,7 +115,7 @@ server.registerTool(
     inputSchema: z.object({}).strict(),
     annotations: READ_ONLY_ANNOTATIONS,
   },
-  safe(async () => {
+  safe("get_latest", async () => {
     const index = await getJson('/index.json');
     const newest = (index.posts || [])[0];
     if (!newest) return json({ error: 'no issues available' });
@@ -133,7 +135,7 @@ server.registerTool(
     },
     annotations: READ_ONLY_ANNOTATIONS,
   },
-  safe(async ({ date }) => json(await getJson(`/${date}.json`)))
+  safe("get_article", async ({ date }) => json(await getJson(`/${date}.json`)))
 );
 
 // --- get_range -------------------------------------------------------------
@@ -150,7 +152,7 @@ server.registerTool(
     },
     annotations: READ_ONLY_ANNOTATIONS,
   },
-  safe(async ({ from, to, limit }) => {
+  safe("get_range", async ({ from, to, limit }) => {
     const [lo, hi] = from <= to ? [from, to] : [to, from];
     const index = await getJson('/index.json');
     const dates = (index.posts || []).map((p) => p.date).filter((d) => d >= lo && d <= hi).slice(0, limit);
@@ -172,7 +174,7 @@ server.registerTool(
     },
     annotations: READ_ONLY_ANNOTATIONS,
   },
-  safe(async ({ tag, limit }) => {
+  safe("list_by_tag", async ({ tag, limit }) => {
     const index = await getJson('/index.json');
     const t = tag.toLowerCase();
     const posts = (index.posts || [])
@@ -197,7 +199,7 @@ server.registerTool(
     },
     annotations: READ_ONLY_ANNOTATIONS,
   },
-  safe(async ({ query, tag, limit }) => {
+  safe("search", async ({ query, tag, limit }) => {
     const q = (query || '').trim();
     const tg = (tag || '').trim();
     if (!q && !tg) return json({ error: 'provide at least one of: query, tag' });
